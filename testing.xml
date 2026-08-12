@@ -8,26 +8,26 @@
 		<body pos="-1.0 0.0 0.2" dynamic="true">
 			<voxbox pos="-1.7 0.0 -1.0" size="34 1 20" offset="0.0 0.0 0.0" color="0.76 0.58 0.23">
 				<screen pos="1.7 0.1 1.0" rot="-90.0 0.0 0.0" size="3.2 1.8" bulge="0" resolution="1920 1080" script="MOD/testing/testBackgroundSandbox.lua" enabled="true" emissive="0"/>
-				<screen pos="1.3 0.1001 1.0" rot="-90.0 50.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="1.0 0.1002 0.9" rot="-90.0 -50.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="1.2 0.1003 1.4" rot="-90.0 40.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="1.28533 0.1004 1.04969" rot="-90.0 70.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="0.96922 0.1005 1.05832" rot="-90.0 -30.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="1.1 0.1006 1.2" rot="-90.0 120.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="0.76983 0.1007 1.05513" rot="-90.0 150.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="0.72344 0.1008 1.36794" rot="-90.0 50.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="1.3 0.1009 1.0" rot="-90.0 -160.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="1.1 0.101 1.3" rot="-90.0 -130.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="1.4 0.1011 1.4" rot="-90.0 130.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="1.2 0.1012 0.7" rot="-90.0 -90.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="1.4135 0.1013 0.99054" rot="-90.0 -60.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="1.61008 0.1014 0.74284" rot="-90.0 -160.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="1.3 0.1015 0.9" rot="-90.0 -120.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="1.33963 0.1016 1.25837" rot="-90.0 -90.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-				<screen pos="1.63372 0.1017 1.14214" rot="-90.0 170.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_01" pos="0.50 0.1001 0.52" rot="-90.0 -75.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_02" pos="0.98 0.1002 0.52" rot="-90.0 -45.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_03" pos="1.46 0.1003 0.52" rot="-90.0 -15.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_04" pos="1.94 0.1004 0.52" rot="-90.0 15.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_05" pos="2.42 0.1005 0.52" rot="-90.0 45.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_06" pos="2.90 0.1006 0.52" rot="-90.0 75.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_07" pos="0.50 0.1007 1.00" rot="-90.0 -150.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_08" pos="0.98 0.1008 1.00" rot="-90.0 -120.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_09" pos="1.46 0.1009 1.00" rot="-90.0 -90.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_10" pos="1.94 0.1010 1.00" rot="-90.0 -60.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_11" pos="2.42 0.1011 1.00" rot="-90.0 -30.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_12" pos="2.90 0.1012 1.00" rot="-90.0 0.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_13" pos="0.50 0.1013 1.48" rot="-90.0 150.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_14" pos="0.98 0.1014 1.48" rot="-90.0 120.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_15" pos="1.46 0.1015 1.48" rot="-90.0 90.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_16" pos="1.94 0.1016 1.48" rot="-90.0 60.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_17" pos="2.42 0.1017 1.48" rot="-90.0 30.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
 			</voxbox>
 			<vox pos="-2.4 0.0 -0.3" rot="0.0 0.0 0.0" file="MOD/testing/reconShape.vox">
-				<screen pos="1.7 0.1018 0.3" rot="-90.0 -100.0 0.0" bulge="0" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				<screen tags="recon_photo_18" pos="3.60 0.1018 0.78" rot="-90.0 180.0 0.0" size="0.6 0.4" bulge="0" resolution="360 240" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
 			</vox>
 		</body>
 	</group>
