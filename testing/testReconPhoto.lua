@@ -1,7 +1,5 @@
-#version 2
-
 local MAP_IMAGE = "ui/terminal/map.jpg"
-local PHOTO_BORDER_IMAGE = "MOD/checkbox_empty_ico.png"
+local PHOTO_BORDER_IMAGE = "ui/common/checkbox_empty_ico.png"
 local MAP_WIDTH_METERS = 3.2
 local MAP_HEIGHT_METERS = 1.8
 local MAP_IMAGE_WIDTH_PIXELS = 1920
