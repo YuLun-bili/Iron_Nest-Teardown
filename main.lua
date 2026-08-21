@@ -1,873 +1,539 @@
-local TOOL_ID = "iron_nest_map_arrow"
-local TOOL_NAME = "Map Pens"
-local TOOL_GROUP = 2
-local PREVIOUS_MODE_INPUT = "leftarrow"
-local NEXT_MODE_INPUT = "rightarrow"
+#version 2
 
-local MAP_BODY_TAG = "iron_nest_map"
-local MAP_PLANE_TAG = "iron_nest_map_plane"
-local MAP_SCREEN_TAG = "iron_nest_map_screen"
+local TOOL_ID = "iron_nest_explosion_weapon"
+local TOOL_NAME = "Explosion Weapon"
+local TOOL_GROUP = 4
+local DEFAULT_EXPLOSION_RADIUS = 10
+local RADIUS_CHANGE_RATE = 5
+local AIM_DISTANCE = 10000
+local DESTRUCTION_LAYER_STEP = 0.5
+local DISTANCE_EPSILON = 0.001
+local PARTICLE_COUNT_MULTIPLIER = 1
+local SIZE_TRANSITION = 4
+local MUSHROOM_MIN_SIZE = 6
+local PARTICLE_SPATIAL_MULTIPLIER = 2
+local SHOCKWAVE_RANGE_MULTIPLIER = 6
+local SHOCKWAVE_REFERENCE_DURATION = 0.6
+local SHOCKWAVE_SPEED = DEFAULT_EXPLOSION_RADIUS * 4 / SHOCKWAVE_REFERENCE_DURATION * 2
+local SHOCKWAVE_DENSITY_MULTIPLIER =
+	(SHOCKWAVE_RANGE_MULTIPLIER / PARTICLE_SPATIAL_MULTIPLIER) ^ 2
+local PUSH_RADIUS_MULTIPLIER = 4
+local PUSH_VELOCITY_PER_RADIUS = 7
 
-local RAYCAST_DISTANCE = 10
-local PLANE_EPSILON = 0.0001
-local MIN_VALID_ARROW_LENGTH = 0.01
-local MIN_VALID_COMPASS_RADIUS = 0.01
-local MAP_ELEMENT_DELETE_DISTANCE = 0.02
-local SPRITE_SURFACE_OFFSET = 0.002
-local COMPASS_GUIDE_SURFACE_OFFSET = 0.0025
-local COMPASS_SURFACE_OFFSET = 0.003
-local DELETE_HIGHLIGHT_SURFACE_OFFSET = 0.0035
-local MAP_MARKER_SURFACE_OFFSET = 0.004
-local ARROW_SPRITE_PIXEL_WIDTH = 32
-local ARROW_SPRITE_PIXEL_HEIGHT = 32
-local ARROW_SPRITE_SCALE = 0.5
-local TEXT_SURFACE_OFFSET = 0.004
-local COMPASS_TEXT_SURFACE_OFFSET = 0.006
-local COMPASS_DASH_LENGTH_HEAD_SCALE = 3
-local COMPASS_DASH_GAP_HEAD_SCALE = 1
-local COMPASS_DASH_PIECE_COUNT = 3
-local COMPASS_MIN_DASH_COUNT = 4
-local COMPASS_MAX_DASH_COUNT = 64
-local COMPASS_DASH_WIDTH_SCALE = 0.5
-local COMPASS_PIECE_OVERLAP_HEAD_SCALE = 0.04
-local GLYPH_CHARACTERS = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz."
-local GLYPH_SPRITE_SIZE = 0.04
-local GLYPH_ADVANCE = 0.024
-local LABEL_GAP = 0.04
-local MAP_METERS_PER_KILOMETER = 0.05
-local MEASUREMENT_LOG_LEFT = 24
-local MEASUREMENT_LOG_TOP = 24
-local MEASUREMENT_LOG_FONT_SIZE = 24
-local MEASUREMENT_LOG_LINE_HEIGHT = 28
-local MODE_INDICATOR_LEFT = 24
-local MODE_INDICATOR_BOTTOM = 24
-local MODE_INDICATOR_FONT_SIZE = 24
-local DEGREE_SYMBOL = string.char(194, 176)
+local playerExplosionRadii = {}
+local pendingExplosionPushes = {}
+local activeExplosionEffects = {}
+local localExplosionRadius = DEFAULT_EXPLOSION_RADIUS
 
-local DRAWING_MODES = {
-	RED_PEN = "red",
-	YELLOW_PEN = "yellow",
-	WHITE_PEN = "white",
-	COMPASS = "compass",
-}
+local function randomUnitVector()
+	local vertical = GetRandomFloat(-1, 1)
+	local angle = GetRandomFloat(0, math.pi * 2)
+	local horizontal = math.sqrt(math.max(0, 1 - vertical * vertical))
+	return Vec(horizontal * math.cos(angle), vertical, horizontal * math.sin(angle))
+end
 
-local DRAWING_MODE_ORDER = {
-	DRAWING_MODES.RED_PEN,
-	DRAWING_MODES.YELLOW_PEN,
-	DRAWING_MODES.WHITE_PEN,
-	DRAWING_MODES.COMPASS,
-}
+local function takeEmissionCount(effect, key, rate, dt)
+	local total = (effect.emission[key] or 0) + rate * dt
+	local count = math.floor(total)
+	effect.emission[key] = total - count
+	return count
+end
 
-local DRAWING_MODE_NAMES = {
-	[DRAWING_MODES.RED_PEN] = "Red Pen",
-	[DRAWING_MODES.YELLOW_PEN] = "Yellow Pen",
-	[DRAWING_MODES.WHITE_PEN] = "White Pen",
-	[DRAWING_MODES.COMPASS] = "Compass",
-}
+local function adjustExplosionRadius(radius, dt, playerId)
+	local direction = 0
+	if InputDown("9", playerId) then direction = direction - 1 end
+	if InputDown("0", playerId) then direction = direction + 1 end
+	return radius + direction * RADIUS_CHANGE_RATE * dt
+end
 
-local PEN_STYLES = {
-	[DRAWING_MODES.RED_PEN] = {
-		color = { red = 1, green = 0, blue = 0 },
-		drawWorldMeasurement = true,
-		recordUiMeasurement = true,
-	},
-	[DRAWING_MODES.YELLOW_PEN] = {
-		color = { red = 1, green = 1, blue = 0 },
-		drawWorldMeasurement = true,
-		recordUiMeasurement = false,
-	},
-	[DRAWING_MODES.WHITE_PEN] = {
-		color = { red = 1, green = 1, blue = 1 },
-		drawWorldMeasurement = false,
-		recordUiMeasurement = false,
-	},
-}
-
-local COMPASS_COLOR = { red = 1, green = 1, blue = 1 }
-
-local mapBody = 0
-local mapPlane = 0
-local mapScreen = 0
-local mapPlaneLocalTransform = nil
-local arrows = {}
-local compassCircles = {}
-local measurementLogEntries = {}
-local activeArrow = nil
-local activeCompass = nil
-local selectedModeIndex = 1
-local nextElementId = 1
-local deleteTargetType = nil
-local deleteTargetId = 0
-
-local arrowSprite = 0
-local lineSprite = 0
-local outlinedArrowSprite = 0
-local outlinedLineSprite = 0
-local redOutlinedArrowSprite = 0
-local redOutlinedLineSprite = 0
-local compassDashSprites = {}
-local outlinedCompassDashSprites = {}
-local redOutlinedCompassDashSprites = {}
-local mapMarkerSprite = 0
-local glyphSprites = {}
-local arrowSpriteWidth = 0
-local arrowSpriteHeight = 0
-local entitySearchTimer = 0
-
-local function readPairProperty(handle, property)
-	local first, second = GetProperty(handle, property)
-	if type(first) == "table" then
-		return first[1], first[2]
+local function createLayeredDestruction(position, radius, playerId)
+	local layerCount = math.floor(radius / DESTRUCTION_LAYER_STEP)
+	for layer = 1, layerCount do
+		Shoot(position, Vec(0, -1, 0), "gun", layer * DESTRUCTION_LAYER_STEP)
 	end
-	return first, second
-end
-
-local function updateArrowSpriteSize()
-	if mapScreen == 0 or not IsHandleValid(mapScreen) then return end
-
-	local screenWidth, screenHeight = readPairProperty(mapScreen, "size")
-	local resolutionWidth, resolutionHeight = readPairProperty(mapScreen, "resolution")
-	if not screenWidth or not screenHeight or not resolutionWidth or not resolutionHeight then return end
-	if resolutionWidth <= 0 or resolutionHeight <= 0 then return end
-
-	arrowSpriteWidth = ARROW_SPRITE_PIXEL_WIDTH * screenWidth / resolutionWidth * ARROW_SPRITE_SCALE
-	arrowSpriteHeight = ARROW_SPRITE_PIXEL_HEIGHT * screenHeight / resolutionHeight * ARROW_SPRITE_SCALE
-end
-
-local function findMapEntities()
-	local previousBody = mapBody
-	local previousPlane = mapPlane
-
-	if mapBody == 0 or not IsHandleValid(mapBody) then
-		mapBody = FindBody(MAP_BODY_TAG, true)
+	if radius - layerCount * DESTRUCTION_LAYER_STEP > DISTANCE_EPSILON then
+		Shoot(position, Vec(0, -1, 0), "gun", radius)
 	end
-	if mapPlane == 0 or not IsHandleValid(mapPlane) then
-		mapPlane = FindLocation(MAP_PLANE_TAG, true)
+	--Explosion(position, radius, playerId)
+end
+
+local function spawnExplosionParticles(effect, dt)
+	local position = effect.position
+	local radius = effect.radius
+	local age = effect.age
+	local sizeRatio = radius / SIZE_TRANSITION
+	local fireScale = math.sqrt(sizeRatio)
+	local smokeScale = sizeRatio
+	local smokeTimeScale = math.max(0.25, smokeScale)
+	local fireRadius = SIZE_TRANSITION * PARTICLE_SPATIAL_MULTIPLIER * fireScale
+	local smokeRadius = radius * PARTICLE_SPATIAL_MULTIPLIER
+	local smokeMotionScale = smokeRadius / smokeTimeScale
+	local particleScale = PARTICLE_COUNT_MULTIPLIER
+	local flashDuration = 0.18
+	local fireballDuration = 0.5
+	local shockRange = radius * SHOCKWAVE_RANGE_MULTIPLIER
+	local shockDuration = shockRange / SHOCKWAVE_SPEED
+	local sparkDuration = 0.38
+	local debrisDuration = 0.5
+	local dustStart = 0.08
+	local dustDuration = smokeTimeScale
+	local mushroomTimeScale = radius / MUSHROOM_MIN_SIZE
+	local smokeStart = 0.24 * mushroomTimeScale
+	local smokeDuration = 3.4 * mushroomTimeScale
+	local effectDuration = math.max(fireballDuration, sparkDuration, debrisDuration, dustStart + dustDuration)
+	if radius >= MUSHROOM_MIN_SIZE then
+		effectDuration = math.max(effectDuration, smokeDuration)
 	end
-	if mapScreen == 0 or not IsHandleValid(mapScreen) then
-		mapScreen = FindScreen(MAP_SCREEN_TAG, true)
-		updateArrowSpriteSize()
-	end
+	local count
+	local direction
+	local spawnPosition
+	local velocity
+	local distance
 
-	if mapBody ~= 0 and IsHandleValid(mapBody) and mapPlane ~= 0 and IsHandleValid(mapPlane)
-		and (not mapPlaneLocalTransform or mapBody ~= previousBody or mapPlane ~= previousPlane) then
-		mapPlaneLocalTransform = TransformToLocalTransform(GetBodyTransform(mapBody), GetLocationTransform(mapPlane))
-	end
-end
+	if IsPointInWater(position) then
+		local waterTimeScale = math.max(0.5, fireScale)
+		local waterDuration = 1.2 * waterTimeScale
+		if age <= waterDuration then
+			local progress = math.max(0, math.min(1, age / waterDuration))
+			local expansion = 1 - (1 - progress) ^ 3
+			local waterRadius = smokeRadius * expansion
 
-local function mapIsReady()
-	return mapBody ~= 0 and IsHandleValid(mapBody)
-		and mapPlane ~= 0 and IsHandleValid(mapPlane)
-		and mapPlaneLocalTransform ~= nil
-end
+			count = takeEmissionCount(effect, "waterSpray", 900 * smokeScale * particleScale, dt)
+			ParticleReset()
+			ParticleType("plain")
+			ParticleColor(0.88, 0.95, 1, 0.3, 0.48, 0.62)
+			ParticleEmissive(0)
+			ParticleRadius(smokeRadius * 0.025, smokeRadius * 0.1, "easeout")
+			ParticleAlpha(1, 0)
+			ParticleCollide(0)
+			ParticleDrag(0.18)
+			ParticleGravity(-smokeRadius * 0.8)
+			ParticleStretch(5)
+			for index = 1, count do
+				ParticleTile(index % 2 == 0 and 1 or 14)
+				direction = randomUnitVector()
+				distance = waterRadius * GetRandomFloat(0, 1) ^ (1 / 3)
+				spawnPosition = VecAdd(position, VecScale(direction, distance))
+				velocity = VecScale(direction, smokeMotionScale * GetRandomFloat(0.5, 1.4))
+				velocity[2] = math.abs(velocity[2]) + smokeMotionScale * GetRandomFloat(0.8, 1.8)
+				SpawnParticle(spawnPosition, velocity, GetRandomFloat(0.6, 1.5) * waterTimeScale)
+			end
 
-local function getWorldEyeRay()
-	local eyeTransform = GetPlayerEyeTransform()
-	local direction = TransformToParentVec(eyeTransform, Vec(0, 0, -1))
-	return eyeTransform.pos, VecNormalize(direction)
-end
+			count = takeEmissionCount(effect, "waterMist", 700 * smokeScale * particleScale, dt)
+			ParticleReset()
+			ParticleType("smoke")
+			ParticleTile(0)
+			ParticleColor(0.72, 0.82, 0.88, 0.24, 0.34, 0.4)
+			ParticleRadius(smokeRadius * 0.06, smokeRadius * 0.24, "easeout")
+			ParticleAlpha(0.82, 0)
+			ParticleCollide(0)
+			ParticleSticky(0.1)
+			ParticleDrag(0.5, 0.18)
+			ParticleGravity(0)
+			ParticleStretch(1)
+			for _ = 1, count do
+				direction = randomUnitVector()
+				distance = waterRadius * GetRandomFloat(0, 1) ^ (1 / 3)
+				spawnPosition = VecAdd(position, VecScale(direction, distance))
+				velocity = VecScale(direction, smokeMotionScale * GetRandomFloat(0.12, 0.42))
+				velocity[2] = math.abs(velocity[2]) + smokeMotionScale * GetRandomFloat(0.18, 0.55)
+				SpawnParticle(spawnPosition, velocity, GetRandomFloat(2, 4.5) * waterTimeScale)
+			end
 
-local function getWorldMapPlane()
-	if not mapIsReady() then return nil, nil end
-
-	local planeTransform = TransformToParentTransform(GetBodyTransform(mapBody), mapPlaneLocalTransform)
-	local normal = TransformToParentVec(planeTransform, Vec(0, 0, 1))
-	return planeTransform.pos, VecNormalize(normal)
-end
-
-local function getLocalMapAxes()
-	if not mapIsReady() then return nil end
-	return VecNormalize(TransformToParentVec(mapPlaneLocalTransform, Vec(1, 0, 0))),
-		VecNormalize(TransformToParentVec(mapPlaneLocalTransform, Vec(0, 1, 0))),
-		VecNormalize(TransformToParentVec(mapPlaneLocalTransform, Vec(0, 0, 1)))
-end
-
-local function intersectWorldRayWithMapPlane(origin, direction)
-	if not mapIsReady() then return nil end
-
-	local planePoint, planeNormal = getWorldMapPlane()
-	if not planePoint then return nil end
-
-	local denominator = VecDot(direction, planeNormal)
-	if math.abs(denominator) < PLANE_EPSILON then return nil end
-
-	local distance = VecDot(VecSub(planePoint, origin), planeNormal) / denominator
-	if distance < 0 then return nil end
-
-	local worldPoint = VecAdd(origin, VecScale(direction, distance))
-	return TransformToLocalPoint(GetBodyTransform(mapBody), worldPoint)
-end
-
-local function projectWorldPointOntoMapPlane(worldPoint)
-	if not mapIsReady() then return nil end
-
-	local planePoint, planeNormal = getWorldMapPlane()
-	if not planePoint then return nil end
-
-	local height = VecDot(VecSub(worldPoint, planePoint), planeNormal)
-	local projectedPoint = VecSub(worldPoint, VecScale(planeNormal, height))
-	return TransformToLocalPoint(GetBodyTransform(mapBody), projectedPoint)
-end
-
-local function getArrowDirectionAndLength(data)
-	local delta = VecSub(data.localEndPoint, data.localStartPoint)
-	local length = VecLength(delta)
-	if length <= PLANE_EPSILON then return nil, 0 end
-	return VecScale(delta, 1 / length), length
-end
-
-local function calculateArrowMeasurement(direction, length, mapRight, mapUp)
-	local bearingDegrees = math.deg(math.atan2(
-		VecDot(direction, mapRight),
-		VecDot(direction, mapUp)
-	))
-	if bearingDegrees < 0 then
-		bearingDegrees = bearingDegrees + 360
-	end
-
-	bearingDegrees = math.floor(bearingDegrees * 10 + 0.5) / 10
-	if bearingDegrees >= 360 then
-		bearingDegrees = 0
-	end
-
-	return {
-		bearingDegrees = bearingDegrees,
-		distanceKilometers = length / MAP_METERS_PER_KILOMETER,
-	}
-end
-
-local function formatMeasurementLogEntry(measurement)
-	return string.format("%.1f%s/%.1fkm",
-		measurement.bearingDegrees,
-		DEGREE_SYMBOL,
-		measurement.distanceKilometers
-	)
-end
-
-local function getMapPointUnderCrosshair()
-	if not mapIsReady() then return end
-
-	local rayOrigin, rayDirection = getWorldEyeRay()
-	local hit, hitDistance, _, shape = QueryRaycast(rayOrigin, rayDirection, RAYCAST_DISTANCE)
-	if not hit or shape == 0 or GetShapeBody(shape) ~= mapBody then return end
-
-	local hitPoint = VecAdd(rayOrigin, VecScale(rayDirection, hitDistance))
-	return projectWorldPointOntoMapPlane(hitPoint)
-end
-
-local function beginMapDrawing()
-	local localPoint = getMapPointUnderCrosshair()
-	if not localPoint then return end
-
-	local mode = DRAWING_MODE_ORDER[selectedModeIndex]
-	if mode == DRAWING_MODES.COMPASS then
-		activeCompass = {
-			localCenterPoint = VecCopy(localPoint),
-			localHeadPoint = VecCopy(localPoint),
-		}
-		return
-	end
-
-	activeArrow = {
-		penType = mode,
-		localStartPoint = VecCopy(localPoint),
-		localEndPoint = VecCopy(localPoint),
-	}
-end
-
-local function updateActiveDrawing()
-	if not activeArrow and not activeCompass then return end
-
-	local rayOrigin, rayDirection = getWorldEyeRay()
-	local localPoint = intersectWorldRayWithMapPlane(rayOrigin, rayDirection)
-	if not localPoint then return end
-
-	if activeArrow then
-		activeArrow.localEndPoint = localPoint
-	else
-		activeCompass.localHeadPoint = localPoint
-	end
-end
-
-local function allocateElementId()
-	local id = nextElementId
-	nextElementId = nextElementId + 1
-	return id
-end
-
-local function finishArrow()
-	if not activeArrow then return end
-
-	local direction, length = getArrowDirectionAndLength(activeArrow)
-	if direction and length >= MIN_VALID_ARROW_LENGTH then
-		local penStyle = PEN_STYLES[activeArrow.penType]
-		activeArrow.id = allocateElementId()
-		if penStyle.drawWorldMeasurement or penStyle.recordUiMeasurement then
-			local mapRight, mapUp = getLocalMapAxes()
-			activeArrow.measurement = calculateArrowMeasurement(direction, length, mapRight, mapUp)
-		end
-		arrows[#arrows + 1] = activeArrow
-		if penStyle.recordUiMeasurement then
-			measurementLogEntries[#measurementLogEntries + 1] = formatMeasurementLogEntry(
-				activeArrow.measurement
-			)
-		end
-	end
-	activeArrow = nil
-end
-
-local function finishCompass()
-	if not activeCompass then return end
-
-	local radius = VecLength(VecSub(activeCompass.localHeadPoint, activeCompass.localCenterPoint))
-	if radius >= MIN_VALID_COMPASS_RADIUS then
-		activeCompass.id = allocateElementId()
-		activeCompass.radius = radius
-		activeCompass.radiusKilometers = radius / MAP_METERS_PER_KILOMETER
-		compassCircles[#compassCircles + 1] = activeCompass
-	end
-	activeCompass = nil
-end
-
-local function finishActiveDrawing()
-	if activeArrow then
-		finishArrow()
-	elseif activeCompass then
-		finishCompass()
-	end
-end
-
-local function cancelActiveDrawing()
-	activeArrow = nil
-	activeCompass = nil
-end
-
-local function isDrawing()
-	return activeArrow ~= nil or activeCompass ~= nil
-end
-
-local function cycleSelectedMode(direction)
-	selectedModeIndex = ((selectedModeIndex - 1 + direction) % #DRAWING_MODE_ORDER) + 1
-end
-
-local function distanceFromPointToSegment(point, startPoint, endPoint)
-	local segment = VecSub(endPoint, startPoint)
-	local lengthSquared = VecDot(segment, segment)
-	if lengthSquared <= PLANE_EPSILON * PLANE_EPSILON then
-		return VecLength(VecSub(point, startPoint))
-	end
-
-	local amount = VecDot(VecSub(point, startPoint), segment) / lengthSquared
-	amount = math.max(0, math.min(1, amount))
-	local nearestPoint = VecAdd(startPoint, VecScale(segment, amount))
-	return VecLength(VecSub(point, nearestPoint))
-end
-
-local function clearDeleteTarget()
-	deleteTargetType = nil
-	deleteTargetId = 0
-end
-
-local function findNearestMapElement()
-	local localPoint = getMapPointUnderCrosshair()
-	if not localPoint then return end
-
-	local bestType = nil
-	local bestDistance = MAP_ELEMENT_DELETE_DISTANCE
-	local bestId = -1
-
-	for i = 1, #arrows do
-		local arrow = arrows[i]
-		local distance = distanceFromPointToSegment(
-			localPoint, arrow.localStartPoint, arrow.localEndPoint
-		)
-		if distance <= MAP_ELEMENT_DELETE_DISTANCE
-			and (distance < bestDistance
-				or (math.abs(distance - bestDistance) <= PLANE_EPSILON and arrow.id > bestId)) then
-			bestType = "arrow"
-			bestDistance = distance
-			bestId = arrow.id
-		end
-	end
-
-	for i = 1, #compassCircles do
-		local compass = compassCircles[i]
-		local distance = math.abs(
-			VecLength(VecSub(localPoint, compass.localCenterPoint)) - compass.radius
-		)
-		if distance <= MAP_ELEMENT_DELETE_DISTANCE
-			and (distance < bestDistance
-				or (math.abs(distance - bestDistance) <= PLANE_EPSILON and compass.id > bestId)) then
-			bestType = "compass"
-			bestDistance = distance
-			bestId = compass.id
-		end
-	end
-
-	return bestType, bestId
-end
-
-local function updateDeleteTarget()
-	local elementType, elementId = findNearestMapElement()
-	deleteTargetType = elementType
-	deleteTargetId = elementId or 0
-end
-
-local function hasDeleteTarget()
-	return deleteTargetType ~= nil and deleteTargetId ~= 0
-end
-
-local function isDeleteTarget(elementType, elementId)
-	return deleteTargetType == elementType and deleteTargetId == elementId
-end
-
-local function deleteTarget()
-	local elements = nil
-	if deleteTargetType == "arrow" then
-		elements = arrows
-	elseif deleteTargetType == "compass" then
-		elements = compassCircles
-	end
-
-	if elements then
-		for i = 1, #elements do
-			if elements[i].id == deleteTargetId then
-				table.remove(elements, i)
-				clearDeleteTarget()
-				return true
+			count = takeEmissionCount(effect, "waterBubbles", 300 * smokeScale * particleScale, dt)
+			ParticleReset()
+			ParticleType("plain")
+			ParticleTile(2)
+			ParticleColor(0.82, 0.92, 1, 0.35, 0.55, 0.72)
+			ParticleRadius(smokeRadius * 0.012, smokeRadius * 0.05, "easeout")
+			ParticleAlpha(0.9, 0)
+			ParticleCollide(0)
+			ParticleDrag(0.5)
+			ParticleGravity(0)
+			ParticleStretch(1)
+			for _ = 1, count do
+				direction = randomUnitVector()
+				distance = waterRadius * GetRandomFloat(0, 1) ^ (1 / 3)
+				spawnPosition = VecAdd(position, VecScale(direction, distance))
+				velocity = VecScale(direction, smokeMotionScale * GetRandomFloat(0.04, 0.18))
+				velocity[2] = math.abs(velocity[2]) + smokeMotionScale * GetRandomFloat(0.2, 0.7)
+				SpawnParticle(spawnPosition, velocity, GetRandomFloat(1.5, 4) * waterTimeScale)
 			end
 		end
+		return waterDuration
 	end
 
-	clearDeleteTarget()
-	return false
-end
+	-- Initial flash: brief, bright and dominant on small explosions.
+	if age <= flashDuration then
+		local fade = 1 - age / flashDuration
+		PointLight(position, 1, 0.45, 0.12, fireRadius * 60 * fade * fade)
 
-local function getGlyphFilename(character)
-	local byte = string.byte(character)
-	if byte >= 48 and byte <= 57 then
-		return "digit_" .. character .. ".png"
-	elseif byte >= 65 and byte <= 90 then
-		return "uppercase_" .. character .. ".png"
-	elseif byte >= 97 and byte <= 122 then
-		return "lowercase_" .. character .. ".png"
-	end
-	return "period.png"
-end
-
-local function loadGlyphSprites()
-	for i = 1, #GLYPH_CHARACTERS do
-		local character = string.sub(GLYPH_CHARACTERS, i, i)
-		glyphSprites[character] = LoadSprite("MOD/data/hud/glyphs/" .. getGlyphFilename(character))
-	end
-	glyphSprites.degree = LoadSprite("MOD/data/hud/glyphs/degree.png")
-end
-
-local function getSpriteTextWidth(text, appendDegree)
-	local glyphCount = #text
-	if appendDegree then
-		glyphCount = glyphCount + 1
-	end
-	if glyphCount == 0 then return 0 end
-	return (glyphCount - 1) * GLYPH_ADVANCE + GLYPH_SPRITE_SIZE
-end
-
-local function drawSpriteText(text, appendDegree, center, right, rotation, bodyTransform, color)
-	local glyphCount = #text
-	if appendDegree then
-		glyphCount = glyphCount + 1
-	end
-	if glyphCount == 0 then return end
-
-	local offset = -(glyphCount - 1) * GLYPH_ADVANCE * 0.5
-	for i = 1, #text do
-		local character = string.sub(text, i, i)
-		local localPosition = VecAdd(center, VecScale(right, offset))
-		local worldTransform = TransformToParentTransform(bodyTransform, Transform(localPosition, rotation))
-		DrawSprite(glyphSprites[character], worldTransform, GLYPH_SPRITE_SIZE, GLYPH_SPRITE_SIZE,
-			color.red, color.green, color.blue, 1, true, false, true)
-		offset = offset + GLYPH_ADVANCE
-	end
-	if appendDegree then
-		local localPosition = VecAdd(center, VecScale(right, offset))
-		local worldTransform = TransformToParentTransform(bodyTransform, Transform(localPosition, rotation))
-		DrawSprite(glyphSprites.degree, worldTransform, GLYPH_SPRITE_SIZE, GLYPH_SPRITE_SIZE,
-			color.red, color.green, color.blue, 1, true, false, true)
-	end
-end
-
-local function getLabelHalfExtent(textWidth, direction, right, up)
-	return math.abs(VecDot(direction, right)) * textWidth * 0.5
-		+ math.abs(VecDot(direction, up)) * GLYPH_SPRITE_SIZE * 0.5
-end
-
-local function drawArrowLabels(data, direction, length, context, color)
-	if length < MIN_VALID_ARROW_LENGTH then return end
-
-	local measurement = data.measurement
-		or calculateArrowMeasurement(direction, length, context.mapRight, context.mapUp)
-	local angleText = string.format("%.1f", measurement.bearingDegrees)
-	local distanceText = string.format("%.1fkm", measurement.distanceKilometers)
-	local angleExtent = getLabelHalfExtent(
-		getSpriteTextWidth(angleText, true), direction, context.mapRight, context.mapUp
-	)
-	local distanceExtent = getLabelHalfExtent(
-		getSpriteTextWidth(distanceText, false), direction, context.mapRight, context.mapUp
-	)
-	local headHeight = math.min(arrowSpriteHeight, length)
-	local surfaceOffset = VecScale(context.mapNormal, TEXT_SURFACE_OFFSET)
-	local angleCenter = VecAdd(VecSub(data.localEndPoint,
-		VecScale(direction, headHeight + LABEL_GAP + angleExtent)), surfaceOffset)
-	local distanceCenter = VecSub(angleCenter,
-		VecScale(direction, angleExtent + LABEL_GAP + distanceExtent))
-
-	drawSpriteText(distanceText, false, distanceCenter,
-		context.mapRight, context.textRotation, context.bodyTransform, color)
-	drawSpriteText(angleText, true, angleCenter,
-		context.mapRight, context.textRotation, context.bodyTransform, color)
-end
-
-local function drawArrow(data, direction, length, headSprite, shaftSprite, context, color,
-	surfaceOffsetAmount)
-	local surfaceOffset = VecScale(context.mapNormal, surfaceOffsetAmount or SPRITE_SURFACE_OFFSET)
-	local startPoint = VecAdd(data.localStartPoint, surfaceOffset)
-	local endPoint = VecAdd(data.localEndPoint, surfaceOffset)
-	-- The sprite's local Z follows the map normal; local Y runs toward the endpoint.
-	local spriteZ = context.mapNormal
-	local spriteX = VecNormalize(VecCross(direction, spriteZ))
-	local rotation = QuatAlignXZ(spriteX, spriteZ)
-
-	local headHeight = math.min(arrowSpriteHeight, length)
-	local headWidth = arrowSpriteWidth * headHeight / arrowSpriteHeight
-	local headCenter = VecSub(endPoint, VecScale(direction, headHeight * 0.5))
-	local shaftTop = VecSub(endPoint, VecScale(direction, headHeight))
-	local shaftLength = length - headHeight
-
-	if shaftLength > PLANE_EPSILON then
-		local shaftCenter = VecLerp(startPoint, shaftTop, 0.5)
-		local shaftTransform = TransformToParentTransform(
-			context.bodyTransform, Transform(shaftCenter, rotation)
-		)
-		DrawSprite(shaftSprite, shaftTransform,
-			arrowSpriteWidth, shaftLength,
-			color.red, color.green, color.blue, 1, true, false, true)
-	end
-	local headTransform = TransformToParentTransform(context.bodyTransform, Transform(headCenter, rotation))
-	DrawSprite(headSprite, headTransform, headWidth, headHeight,
-		color.red, color.green, color.blue, 1, true, false, true)
-end
-
-local function drawMapMarker(localPoint, color, context)
-	local markerSize = math.min(arrowSpriteWidth, arrowSpriteHeight)
-	local position = VecAdd(localPoint,
-		VecScale(context.mapNormal, MAP_MARKER_SURFACE_OFFSET))
-	local worldTransform = TransformToParentTransform(
-		context.bodyTransform, Transform(position, context.textRotation)
-	)
-	DrawSprite(mapMarkerSprite, worldTransform, markerSize, markerSize,
-		color.red, color.green, color.blue, 1, true, false, true)
-end
-
-local function drawArrowWithLabels(data, headSprite, shaftSprite, context)
-	local penStyle = PEN_STYLES[data.penType]
-	drawMapMarker(data.localStartPoint, penStyle.color, context)
-
-	local direction, length = getArrowDirectionAndLength(data)
-	if not direction then return end
-
-	drawArrow(data, direction, length, headSprite, shaftSprite, context, penStyle.color)
-	if penStyle.drawWorldMeasurement then
-		drawArrowLabels(data, direction, length, context, penStyle.color)
-	end
-end
-
-local function drawArrowDeleteHighlight(data, context)
-	local direction, length = getArrowDirectionAndLength(data)
-	if not direction then return end
-
-	local penStyle = PEN_STYLES[data.penType]
-	drawArrow(data, direction, length, redOutlinedArrowSprite, redOutlinedLineSprite,
-		context, penStyle.color, DELETE_HIGHLIGHT_SURFACE_OFFSET)
-end
-
-local function drawSegmentSprite(sprite, startPoint, endPoint, width, context, color, surfaceOffset)
-	local delta = VecSub(endPoint, startPoint)
-	local length = VecLength(delta)
-	if length <= PLANE_EPSILON then return end
-
-	local direction = VecScale(delta, 1 / length)
-	local spriteX = VecNormalize(VecCross(direction, context.mapNormal))
-	local rotation = QuatAlignXZ(spriteX, context.mapNormal)
-	local center = VecAdd(VecLerp(startPoint, endPoint, 0.5),
-		VecScale(context.mapNormal, surfaceOffset))
-	local worldTransform = TransformToParentTransform(
-		context.bodyTransform, Transform(center, rotation)
-	)
-	DrawSprite(sprite, worldTransform, width, length,
-		color.red, color.green, color.blue, 1, true, false, true)
-end
-
-local function getCompassRadiusAndDirection(data)
-	local delta = VecSub(data.localHeadPoint, data.localCenterPoint)
-	local radius = VecLength(delta)
-	if radius <= PLANE_EPSILON then return 0, nil end
-	return radius, VecScale(delta, 1 / radius)
-end
-
-local function getCompassPoint(center, radius, angle, context)
-	local rightOffset = VecScale(context.mapRight, math.sin(angle) * radius)
-	local upOffset = VecScale(context.mapUp, math.cos(angle) * radius)
-	return VecAdd(center, VecAdd(rightOffset, upOffset))
-end
-
-local function getCompassDashLayout(radius)
-	local desiredPeriodLength = arrowSpriteHeight
-		* (COMPASS_DASH_LENGTH_HEAD_SCALE + COMPASS_DASH_GAP_HEAD_SCALE)
-	local circumference = 2 * math.pi * radius
-	local dashCount = math.floor(circumference / desiredPeriodLength + 0.5)
-	dashCount = math.max(COMPASS_MIN_DASH_COUNT, math.min(COMPASS_MAX_DASH_COUNT, dashCount))
-
-	local periodAngle = 2 * math.pi / dashCount
-	local dashDutyCycle = COMPASS_DASH_LENGTH_HEAD_SCALE
-		/ (COMPASS_DASH_LENGTH_HEAD_SCALE + COMPASS_DASH_GAP_HEAD_SCALE)
-	return dashCount, periodAngle, periodAngle * dashDutyCycle
-end
-
-local function drawCompassDashPiece(sprite, startPoint, endPoint, pieceIndex, context,
-	surfaceOffset)
-	local delta = VecSub(endPoint, startPoint)
-	local length = VecLength(delta)
-	if length <= PLANE_EPSILON then return end
-
-	local direction = VecScale(delta, 1 / length)
-	local overlap = math.min(
-		arrowSpriteHeight * COMPASS_PIECE_OVERLAP_HEAD_SCALE,
-		length * 0.1
-	)
-	if pieceIndex > 1 then
-		startPoint = VecSub(startPoint, VecScale(direction, overlap))
-	end
-	if pieceIndex < COMPASS_DASH_PIECE_COUNT then
-		endPoint = VecAdd(endPoint, VecScale(direction, overlap))
-	end
-
-	drawSegmentSprite(sprite, startPoint, endPoint,
-		arrowSpriteWidth * COMPASS_DASH_WIDTH_SCALE,
-		context, COMPASS_COLOR, surfaceOffset)
-end
-
-local function drawCompassDashes(data, radius, radialDirection, dashSprites, context,
-	surfaceOffset)
-	local dashCount, periodAngle, dashAngle = getCompassDashLayout(radius)
-	local headAngle = math.atan2(
-		VecDot(radialDirection, context.mapRight),
-		VecDot(radialDirection, context.mapUp)
-	)
-	local pieceAngle = dashAngle / COMPASS_DASH_PIECE_COUNT
-
-	for dashIndex = 0, dashCount - 1 do
-		local dashHeadAngle = headAngle + dashIndex * periodAngle
-		local dashTailAngle = dashHeadAngle - dashAngle
-		for pieceIndex = 1, COMPASS_DASH_PIECE_COUNT do
-			local startAngle = dashTailAngle + (pieceIndex - 1) * pieceAngle
-			local endAngle = startAngle + pieceAngle
-			local startPoint = getCompassPoint(data.localCenterPoint, radius, startAngle, context)
-			local endPoint = getCompassPoint(data.localCenterPoint, radius, endAngle, context)
-			drawCompassDashPiece(
-				dashSprites[pieceIndex], startPoint, endPoint, pieceIndex, context, surfaceOffset
+		count = takeEmissionCount(effect, "flash", 700 * fireScale * particleScale, dt)
+		ParticleReset()
+		ParticleType("plain")
+		ParticleTile(0)
+		ParticleColor(1, 0.82, 0.42, 1, 0.1, 0.02)
+		ParticleEmissive(22, 2, "easeout")
+		ParticleRadius(fireRadius * 0.07, fireRadius * 0.3, "easeout")
+		ParticleAlpha(1, 0, "easeout")
+		ParticleCollide(0)
+		ParticleSticky(0)
+		ParticleDrag(0.45)
+		ParticleGravity(0)
+		ParticleStretch(2)
+		for _ = 1, count do
+			direction = randomUnitVector()
+			distance = fireRadius * (1 - fade) * GetRandomFloat(0, 0.35) ^ (1 / 3)
+			spawnPosition = VecAdd(position, VecScale(direction, distance))
+			SpawnParticle(
+				spawnPosition,
+				VecScale(direction, fireRadius * GetRandomFloat(0.25, 0.7)),
+				GetRandomFloat(0.12, 0.32)
 			)
 		end
 	end
-end
 
-local function drawCompassRadiusLabel(data, radius, radialDirection, context)
-	local radiusKilometers = data.radiusKilometers or radius / MAP_METERS_PER_KILOMETER
-	local radiusText = string.format("%.1fkm", radiusKilometers)
-	local clockwiseDirection = VecNormalize(VecCross(radialDirection, context.mapNormal))
-	local labelExtent = getLabelHalfExtent(
-		getSpriteTextWidth(radiusText, false),
-		clockwiseDirection,
-		context.mapRight,
-		context.mapUp
-	)
-	local labelCenter = VecAdd(data.localHeadPoint,
-		VecScale(clockwiseDirection, arrowSpriteHeight + LABEL_GAP + labelExtent))
-	labelCenter = VecAdd(labelCenter,
-		VecScale(context.mapNormal, COMPASS_TEXT_SURFACE_OFFSET))
+	-- Fireball: volume-uniform samples fill an expanding sphere all the way to the configured radius.
+	if age <= fireballDuration then
+		local progress = math.max(0, math.min(1, age / fireballDuration))
+		local expansion = 1 - (1 - progress) ^ 3
+		local fireballRadius = fireRadius * expansion
+		local expansionSpeed = fireRadius / fireballDuration
+		PointLight(position, 1, 0.32, 0.06, fireRadius * 27.5 * (1 - progress))
 
-	drawSpriteText(radiusText, false, labelCenter,
-		context.mapRight, context.textRotation, context.bodyTransform, COMPASS_COLOR)
-end
-
-local function drawCompass(data, dashSprites, drawGuide, context)
-	drawMapMarker(data.localCenterPoint, COMPASS_COLOR, context)
-
-	local radius, radialDirection = getCompassRadiusAndDirection(data)
-	if not radialDirection then return end
-
-	if drawGuide then
-		drawSegmentSprite(lineSprite, data.localCenterPoint, data.localHeadPoint,
-			arrowSpriteWidth, context, COMPASS_COLOR, COMPASS_GUIDE_SURFACE_OFFSET)
+		count = takeEmissionCount(effect, "fireball", 1000 * fireScale * particleScale, dt)
+		ParticleReset()
+		ParticleType("smoke")
+		ParticleTile(5)
+		ParticleColor(1, 0.48, 0.1, 0.24, 0.16, 0.14)
+		ParticleEmissive(14, 0, "easeout")
+		ParticleRadius(
+			fireRadius * 0.06,
+			fireRadius * 0.17,
+			"easeout"
+		)
+		ParticleAlpha(1, 0, "easeout")
+		ParticleCollide(0)
+		ParticleSticky(0.12)
+		ParticleDrag(0.32, 0.12)
+		ParticleGravity(0)
+		ParticleStretch(2)
+		for _ = 1, count do
+			direction = randomUnitVector()
+			distance = fireballRadius * GetRandomFloat(0, 1) ^ (1 / 3)
+			spawnPosition = VecAdd(position, VecScale(direction, distance))
+			velocity = VecScale(direction, expansionSpeed * GetRandomFloat(0.08, 0.28))
+			velocity[2] = velocity[2] + fireRadius * GetRandomFloat(0.03, 0.14)
+			SpawnParticle(spawnPosition, velocity, GetRandomFloat(0.5, 1.05))
+		end
 	end
-	drawCompassDashes(data, radius, radialDirection, dashSprites, context, COMPASS_SURFACE_OFFSET)
-	drawCompassRadiusLabel(data, radius, radialDirection, context)
+
+	-- Fixed-speed shockwave: every generation stays on r = SHOCKWAVE_SPEED * currentAge.
+	if age < shockDuration then
+		local waveRadius = SHOCKWAVE_SPEED * age
+		local shockVisibility = math.max(0, math.min(1, radius / DEFAULT_EXPLOSION_RADIUS))
+		local shockEmissionDt = math.min(dt, shockDuration - age)
+		count = takeEmissionCount(
+			effect,
+			"shockwave",
+			2000 * particleScale * SHOCKWAVE_DENSITY_MULTIPLIER
+				* SHOCKWAVE_REFERENCE_DURATION / shockDuration,
+			shockEmissionDt
+		)
+
+		ParticleReset()
+		ParticleType("plain")
+		ParticleTile(0)
+		ParticleColor(0.9, 0.84, 0.72, 0.3, 0.29, 0.28)
+		ParticleEmissive(1.5 * shockVisibility, 0, "easeout")
+		ParticleRadius(
+			smokeRadius * 0.014,
+			smokeRadius * 0.08,
+			"easeout"
+		)
+		ParticleAlpha(shockVisibility, 0, "easeout")
+		ParticleCollide(0)
+		ParticleSticky(0)
+		ParticleDrag(0)
+		ParticleGravity(0)
+		ParticleStretch(1)
+		for _ = 1, count do
+			direction = randomUnitVector()
+			spawnPosition = VecAdd(position, VecScale(direction, waveRadius))
+			SpawnParticle(
+				spawnPosition,
+				VecScale(direction, SHOCKWAVE_SPEED),
+				shockDuration - age
+			)
+		end
+	end
+
+	-- Sparks and hot fragments lead small explosions, then become accents on large ones.
+	if age <= sparkDuration then
+		count = takeEmissionCount(effect, "sparks", 1200 * fireScale * particleScale, dt)
+		ParticleReset()
+		ParticleType("plain")
+		ParticleTile(6)
+		ParticleColor(1, 0.58, 0.14, 0.6, 0.12, 0.02)
+		ParticleEmissive(9, 0, "easeout")
+		ParticleAlpha(1, 0)
+		ParticleCollide(0.25)
+		ParticleSticky(0.15)
+		ParticleDrag(0.16)
+		ParticleGravity(-fireRadius * 1.2)
+		ParticleStretch(32, 6)
+		for _ = 1, count do
+			ParticleRadius(fireRadius * GetRandomFloat(0.004, 0.011), 0, "easeout")
+			direction = randomUnitVector()
+			spawnPosition = VecAdd(position, VecScale(direction, fireRadius * GetRandomFloat(0.02, 0.18)))
+			velocity = VecScale(direction, fireRadius * GetRandomFloat(3, 7))
+			velocity[2] = velocity[2] + fireRadius * GetRandomFloat(0.2, 0.9)
+			SpawnParticle(spawnPosition, velocity, GetRandomFloat(0.4, 1.1))
+		end
+	end
+
+	if age <= debrisDuration then
+		count = takeEmissionCount(effect, "debris", 300 * smokeScale * particleScale, dt)
+		ParticleReset()
+		ParticleType("plain")
+		ParticleTile(4)
+		ParticleColor(0.42, 0.34, 0.23, 0.07, 0.065, 0.06)
+		ParticleEmissive(2, 0, "easeout")
+		ParticleAlpha(1, 0)
+		ParticleCollide(0.45)
+		ParticleSticky(0.3)
+		ParticleDrag(0.12)
+		ParticleGravity(-smokeRadius * 1.8)
+		ParticleStretch(2)
+		for _ = 1, count do
+			ParticleRadius(smokeRadius * GetRandomFloat(0.008, 0.02), smokeRadius * 0.004, "easeout")
+			direction = randomUnitVector()
+			spawnPosition = VecAdd(position, VecScale(direction, smokeRadius * GetRandomFloat(0.04, 0.3)))
+			velocity = VecScale(direction, smokeMotionScale * GetRandomFloat(0.9, 2.8))
+			velocity[2] = velocity[2] + smokeMotionScale * GetRandomFloat(0.1, 0.6)
+			SpawnParticle(spawnPosition, velocity, GetRandomFloat(1.4, 3.8))
+		end
+	end
+
+	-- Dust scales linearly in space and lifetime, so it overtakes sqrt-scaled fire above size four.
+	if age >= dustStart and age <= dustStart + dustDuration then
+		local progress = math.max(0, math.min(1, (age - dustStart) / dustDuration))
+		local expansion = 1 - (1 - progress) ^ 3
+		local dustRadius = smokeRadius * (0.12 + 0.88 * expansion)
+		count = takeEmissionCount(effect, "dust", 1080 * smokeScale * particleScale, dt)
+
+		ParticleReset()
+		ParticleType("smoke")
+		ParticleTile(0)
+		ParticleColor(0.42, 0.36, 0.29, 0.09, 0.09, 0.095)
+		ParticleEmissive(0)
+		ParticleRadius(
+			smokeRadius * 0.05,
+			smokeRadius * 0.17,
+			"easeout"
+		)
+		ParticleAlpha(0.92, 0)
+		ParticleCollide(0)
+		ParticleSticky(0.15)
+		ParticleDrag(0.58, 0.2)
+		ParticleGravity(0)
+		ParticleStretch(1)
+		for _ = 1, count do
+			direction = randomUnitVector()
+			distance = dustRadius * GetRandomFloat(0, 1) ^ (1 / 3)
+			spawnPosition = VecAdd(position, VecScale(direction, distance))
+			velocity = VecScale(direction, smokeMotionScale * GetRandomFloat(0.08, 0.28))
+			velocity[2] = velocity[2] + smokeMotionScale * GetRandomFloat(0.08, 0.3)
+			SpawnParticle(spawnPosition, velocity, GetRandomFloat(2.4, 5.2) * smokeTimeScale)
+		end
+	end
+
+	-- Mushroom-cloud size and lifetime grow together; inverse emission rate preserves density.
+	if radius >= MUSHROOM_MIN_SIZE and age >= smokeStart and age <= smokeDuration then
+		local progress = math.max(0, math.min(1, (age - smokeStart) / (smokeDuration - smokeStart)))
+		local stemHeight = smokeRadius * (0.15 + 1.05 * progress)
+		local stemRadius = smokeRadius * (0.1 + 0.2 * progress)
+		local crownRadius = smokeRadius * (0.16 + 0.48 * progress)
+		local crownChance = 0.25 + 0.55 * progress
+		local mushroomMotionScale = smokeRadius / mushroomTimeScale
+		count = takeEmissionCount(effect, "column", 500 / mushroomTimeScale * particleScale, dt)
+
+		ParticleReset()
+		ParticleType("smoke")
+		ParticleTile(0)
+		ParticleColor(0.3, 0.28, 0.27, 0.075, 0.075, 0.08)
+		ParticleEmissive(0)
+		ParticleRadius(
+			smokeRadius * 0.075 * (0.8 + 0.4 * progress),
+			smokeRadius * 0.2 * (1 + 0.5 * progress),
+			"easeout"
+		)
+		ParticleAlpha(0.9, 0)
+		ParticleCollide(0)
+		ParticleSticky(0.18)
+		ParticleDrag(0.7, 0.28)
+		ParticleGravity(0)
+		ParticleStretch(1)
+		for _ = 1, count do
+			if GetRandomFloat(0, 1) < crownChance then
+				direction = randomUnitVector()
+				spawnPosition = VecAdd(
+					position,
+					Vec(
+						direction[1] * crownRadius,
+						stemHeight * 0.8 + direction[2] * crownRadius * 0.55,
+						direction[3] * crownRadius
+					)
+				)
+			else
+				local angle = GetRandomFloat(0, math.pi * 2)
+				local horizontalRadius = stemRadius * math.sqrt(GetRandomFloat(0, 1))
+				spawnPosition = VecAdd(
+					position,
+					Vec(
+						math.cos(angle) * horizontalRadius,
+						GetRandomFloat(0, stemHeight),
+						math.sin(angle) * horizontalRadius
+					)
+				)
+			end
+			velocity = Vec(
+				GetRandomFloat(-0.08, 0.08) * mushroomMotionScale,
+				mushroomMotionScale * GetRandomFloat(0.12, 0.34),
+				GetRandomFloat(-0.08, 0.08) * mushroomMotionScale
+			)
+			SpawnParticle(spawnPosition, velocity, GetRandomFloat(3.2, 6.5) * mushroomTimeScale)
+		end
+	end
+
+	return effectDuration
 end
 
-local function drawCompassDeleteHighlight(data, context)
-	local radius, radialDirection = getCompassRadiusAndDirection(data)
-	if not radialDirection then return end
-	drawCompassDashes(data, radius, radialDirection,
-		redOutlinedCompassDashSprites, context, DELETE_HIGHLIGHT_SURFACE_OFFSET)
+local function processExplosionParticleEffects(dt)
+	for index = #activeExplosionEffects, 1, -1 do
+		local effect = activeExplosionEffects[index]
+		local effectDuration = spawnExplosionParticles(effect, dt)
+		effect.age = effect.age + dt
+		if effect.age > effectDuration then
+			activeExplosionEffects[index] = activeExplosionEffects[#activeExplosionEffects]
+			activeExplosionEffects[#activeExplosionEffects] = nil
+		end
+	end
 end
 
-local function getMapRenderContext()
-	if not mapIsReady() or arrowSpriteWidth <= 0 or arrowSpriteHeight <= 0 then return end
+local function applyExplosionPush(position, radius)
+	local pushRadius = radius * PUSH_RADIUS_MULTIPLIER
+	local extent = Vec(pushRadius, pushRadius, pushRadius)
+	QueryRequire("dynamic physical")
+	local players = GetAllPlayers()
+	for index = 1, #players do
+		local playerId = players[index]
+		QueryRejectPlayer(playerId)
+		local toolBody = GetToolBody(playerId)
+		if toolBody ~= 0 then QueryRejectBody(toolBody) end
+	end
+	local bodies = QueryAabbBodies(VecSub(position, extent), VecAdd(position, extent))
+	for index = 1, #bodies do
+		local body = bodies[index]
+		local center = TransformToParentPoint(GetBodyTransform(body), GetBodyCenterOfMass(body))
+		local delta = VecSub(center, position)
+		local distance = VecLength(delta)
+		if distance < pushRadius then
+			local direction = distance > DISTANCE_EPSILON
+				and VecScale(delta, 1 / distance) or randomUnitVector()
+			direction = VecNormalize(VecAdd(direction, Vec(0, 0.18, 0)))
+			local deltaVelocity = PUSH_VELOCITY_PER_RADIUS * radius * (1 - (distance / pushRadius) ^ 2)
+			ApplyBodyImpulse(body, center, VecScale(direction, GetBodyMass(body) * deltaVelocity))
+		end
+	end
+end
 
-	local mapRight, mapUp, mapNormal = getLocalMapAxes()
-	if not mapRight then return end
-	return {
-		bodyTransform = GetBodyTransform(mapBody),
-		mapNormal = mapNormal,
-		mapRight = mapRight,
-		mapUp = mapUp,
-		textRotation = QuatAlignXZ(mapRight, mapNormal),
+local function processPendingExplosionPushes()
+	local pending = pendingExplosionPushes
+	pendingExplosionPushes = {}
+	for index = 1, #pending do
+		local explosion = pending[index]
+		applyExplosionPush(explosion.position, explosion.radius)
+	end
+end
+
+local function customExplosion(position, radius, playerId)
+	radius = radius or DEFAULT_EXPLOSION_RADIUS
+	if radius <= 0 then return end
+
+	createLayeredDestruction(position, radius, playerId)
+	activeExplosionEffects[#activeExplosionEffects + 1] = {
+		position = VecCopy(position),
+		radius = radius,
+		age = 0,
+		emission = {},
+	}
+	pendingExplosionPushes[#pendingExplosionPushes + 1] = {
+		position = VecCopy(position),
+		radius = radius,
 	}
 end
 
-local function drawMapElements()
-	local context = getMapRenderContext()
-	if not context then return end
+local function getPlayerAimPosition(playerId)
+	local eyeTransform = GetPlayerEyeTransform(playerId)
+	local _, _, endPosition = GetPlayerAimInfo(eyeTransform.pos, AIM_DISTANCE, playerId)
+	return endPosition
+end
 
-	for i = 1, #arrows do
-		local arrow = arrows[i]
-		drawArrowWithLabels(arrow, arrowSprite, lineSprite, context)
-		if isDeleteTarget("arrow", arrow.id) then
-			drawArrowDeleteHighlight(arrow, context)
-		end
+local function updatePlayer(playerId, dt)
+	local radius = playerExplosionRadii[playerId]
+	if radius == nil then
+		radius = DEFAULT_EXPLOSION_RADIUS
+		playerExplosionRadii[playerId] = radius
+		SetToolEnabled(TOOL_ID, true, playerId)
 	end
-	if activeArrow then
-		drawArrowWithLabels(activeArrow, outlinedArrowSprite, outlinedLineSprite, context)
-	end
+	if GetPlayerTool(playerId) ~= TOOL_ID or GetPlayerVehicle(playerId) ~= 0 then return end
 
-	for i = 1, #compassCircles do
-		local compass = compassCircles[i]
-		drawCompass(compass, compassDashSprites, false, context)
-		if isDeleteTarget("compass", compass.id) then
-			drawCompassDeleteHighlight(compass, context)
-		end
-	end
-	if activeCompass then
-		drawCompass(activeCompass, outlinedCompassDashSprites, true, context)
+	radius = adjustExplosionRadius(radius, dt, playerId)
+	playerExplosionRadii[playerId] = radius
+
+	if InputPressed("usetool", playerId) then
+		customExplosion(getPlayerAimPosition(playerId), radius, playerId)
 	end
 end
 
-local function drawMeasurementLog()
-	UiPush()
-		UiTranslate(MEASUREMENT_LOG_LEFT, MEASUREMENT_LOG_TOP)
-		UiAlign("left top")
-		UiFont("regular.ttf", MEASUREMENT_LOG_FONT_SIZE)
-		UiColor(0, 0, 0, 1)
-
-		for i = 1, #measurementLogEntries do
-			UiText(measurementLogEntries[i])
-			UiTranslate(0, MEASUREMENT_LOG_LINE_HEIGHT)
-		end
-	UiPop()
-end
-
-local function drawModeIndicator()
-	if GetString("game.player.tool") ~= TOOL_ID then return end
-
-	local mode = DRAWING_MODE_ORDER[selectedModeIndex]
-	UiPush()
-		UiTranslate(MODE_INDICATOR_LEFT, UiHeight() - MODE_INDICATOR_BOTTOM)
-		UiAlign("left bottom")
-		UiFont("regular.ttf", MODE_INDICATOR_FONT_SIZE)
-		UiColor(0, 0, 0, 1)
-		UiText(DRAWING_MODE_NAMES[mode])
-	UiPop()
-end
-
-function init()
+function server.init()
 	RegisterTool(TOOL_ID, TOOL_NAME, "", TOOL_GROUP)
-	SetBool("game.tool." .. TOOL_ID .. ".enabled", true)
-
-	arrowSprite = LoadSprite("MOD/data/hud/uparrow.png")
-	lineSprite = LoadSprite("MOD/data/hud/line.png")
-	outlinedArrowSprite = LoadSprite("MOD/data/hud/uparrow-outlined.png")
-	outlinedLineSprite = LoadSprite("MOD/data/hud/line-outlined.png")
-	redOutlinedArrowSprite = LoadSprite("MOD/data/hud/uparrow-red-outlined.png")
-	redOutlinedLineSprite = LoadSprite("MOD/data/hud/line-red-outlined.png")
-	-- Dash pieces are stored in drawing order from the counterclockwise tail to the clockwise head.
-	compassDashSprites[1] = LoadSprite("MOD/data/hud/dashed-line-tail.png")
-	compassDashSprites[2] = LoadSprite("MOD/data/hud/dashed-line-middle.png")
-	compassDashSprites[3] = LoadSprite("MOD/data/hud/dashed-line-head.png")
-	outlinedCompassDashSprites[1] = LoadSprite("MOD/data/hud/dashed-line-outlined-tail.png")
-	outlinedCompassDashSprites[2] = LoadSprite("MOD/data/hud/dashed-line-outlined-middle.png")
-	outlinedCompassDashSprites[3] = LoadSprite("MOD/data/hud/dashed-line-outlined-head.png")
-	redOutlinedCompassDashSprites[1] = LoadSprite("MOD/data/hud/dashed-line-red-outlined-tail.png")
-	redOutlinedCompassDashSprites[2] = LoadSprite("MOD/data/hud/dashed-line-red-outlined-middle.png")
-	redOutlinedCompassDashSprites[3] = LoadSprite("MOD/data/hud/dashed-line-red-outlined-head.png")
-	mapMarkerSprite = LoadSprite("MOD/data/hud/map-marker.png")
-	loadGlyphSprites()
-
-	findMapEntities()
 end
 
-function tick(dt)
-	entitySearchTimer = entitySearchTimer - dt
-	if entitySearchTimer <= 0 and (not mapIsReady() or mapScreen == 0 or not IsHandleValid(mapScreen)) then
-		findMapEntities()
-		entitySearchTimer = 0.5
-	end
-	if not mapIsReady() then
-		mapPlaneLocalTransform = nil
-		cancelActiveDrawing()
+function server.tick(dt)
+	processPendingExplosionPushes()
+
+	local removedPlayers = GetRemovedPlayers()
+	for index = 1, #removedPlayers do
+		playerExplosionRadii[removedPlayers[index]] = nil
 	end
 
-	local toolSelected = GetString("game.player.tool") == TOOL_ID
-	local canUseTool = GetBool("game.player.canusetool") and GetPlayerVehicle() == 0
-	local useToolPressed = toolSelected and InputPressed("usetool")
-	local deletedElement = false
-	if toolSelected then
-		ReleasePlayerGrab()
+	local players = GetAllPlayers()
+	for index = 1, #players do
+		updatePlayer(players[index], dt)
 	end
 
-	if toolSelected and not isDrawing() then
-		updateDeleteTarget()
-		if InputPressed(PREVIOUS_MODE_INPUT) then
-			cycleSelectedMode(-1)
-		elseif InputPressed(NEXT_MODE_INPUT) then
-			cycleSelectedMode(1)
-		end
-		if hasDeleteTarget() and (useToolPressed or InputPressed("rmb")) then
-			deletedElement = deleteTarget()
-		end
-	else
-		clearDeleteTarget()
-	end
+	processExplosionParticleEffects(dt)
+end
 
-	if toolSelected and canUseTool then
-		if useToolPressed and not deletedElement then
-			clearDeleteTarget()
-			beginMapDrawing()
-		end
-		if isDrawing() then
-			updateActiveDrawing()
-			if InputReleased("usetool") then
-				finishActiveDrawing()
-			end
-		end
-	elseif isDrawing() then
-		cancelActiveDrawing()
+function client.tick(dt)
+	local playerId = GetLocalPlayer()
+	if GetPlayerTool(playerId) == TOOL_ID and GetPlayerVehicle(playerId) == 0 then
+		localExplosionRadius = adjustExplosionRadius(localExplosionRadius, dt, playerId)
 	end
 end
 
-function render(dt)
-	drawMapElements()
-end
+function client.draw()
+	local playerId = GetLocalPlayer()
+	if GetPlayerTool(playerId) ~= TOOL_ID or GetPlayerVehicle(playerId) ~= 0 then return end
 
-function draw()
-	drawMeasurementLog()
-	drawModeIndicator()
+	UiPush()
+		UiTranslate(20, UiHeight() - 20)
+		UiAlign("left bottom")
+		UiFont("bold.ttf", 20)
+		UiColor(1, 1, 1, 1)
+		UiTextOutline(0, 0, 0, 0.9, 0.2)
+		UiText(string.format("Power: %.1f", localExplosionRadius))
+	UiPop()
 end

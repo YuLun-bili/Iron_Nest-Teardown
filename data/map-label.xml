@@ -1,0 +1,7 @@
+<prefab version="2.0.4">
+	<group name="map label" pos="0.0 0.0 0.0" rot="0.0 0.0 0.0">
+		<body tags="nomerge iron_nest_map_label" pos="0.0 0.0 0.0" rot="0.0 0.0 0.0" dynamic="false">
+			<voxbox pos="-0.15 0.0 -0.1" size="3 1 2" color="0.86 0.18 0.12" collide="false"/>
+		</body>
+	</group>
+</prefab>
