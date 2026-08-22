@@ -1,13 +1,14 @@
-<scene version="2.0.4" shadowVolume="200 50 200">
+<scene version="2.1.0" shadowVolume="200 50 200">
 	<environment template="sunset"/>
 	<script file="main.lua"/>
 	<script file="sandbox.lua"/>
 	<voxbox pos="-25 0 -25" size="500 1 500"/>
 	<spawnpoint pos="0 1 0" rot="0 180 0"/>
 	<group name="map table" pos="-3.9 0.1 -1.0">
+		<script file="MOD/testing/testInteractMap.lua"/>
 		<body tags="nomerge iron_nest_map" pos="-1.0 0.0 0.2" dynamic="true">
 			<location tags="iron_nest_map_plane" pos="0.0 0.1 0.0" rot="-90.0 0.0 0.0"/>
-			<voxbox pos="-1.7 0.0 -1.0" rot="0.0 0.0 0.0" size="34 1 20" offset="0.0 0.0 0.0" color="0.76 0.58 0.23">
+			<voxbox tags="mapTable" pos="-1.7 0.0 -1.0" rot="0.0 0.0 0.0" size="34 1 20" offset="0.0 0.0 0.0" color="0.76 0.58 0.23">
 				<screen tags="imagePath=ui/terminal/map.jpg iron_nest_map_screen" pos="1.7 0.1 1.0" rot="-90.0 0.0 0.0" size="3.2 1.8" bulge="0" resolution="1920 1080" script="MOD/testing/testBackgroundSandbox.lua" enabled="true" emissive="0"/>
 				<group name="recon" pos="1.7 0.1 1.0">
 					<vox pos="-0.7 -0.02 -0.3" rot="0.0 -40.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
