@@ -1,6 +1,6 @@
-<scene version="2.1.0" shadowVolume="200 50 200">
+<scene version="2.0.4" shadowVolume="200 50 200">
 	<environment template="sunset"/>
-	<script file="map_drawing.lua"/>
+	<script file="main.lua"/>
 	<script file="sandbox.lua"/>
 	<voxbox pos="-25 0 -25" size="500 1 500"/>
 	<spawnpoint pos="0 1 0" rot="0 180 0"/>
@@ -71,9 +71,6 @@
 				</group>
 			</voxbox>
 		</body>
-		<instance pos="-2.25 0.1 -0.45" rot="0.0 0.0 0.0" file="MOD/data/map-label.xml"/>
-		<instance pos="0.25 0.1 -0.45" rot="0.0 0.0 0.0" file="MOD/data/map-label.xml"/>
-		<instance pos="0.25 0.1 0.85" rot="0.0 0.0 0.0" file="MOD/data/map-label.xml"/>
 		<vox pos="-3.4 0.0 -0.1" rot="0.0 0.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
 			<screen pos="0.0 0.0201 0.0" rot="-90.0 0.0 0.0" size="0.72 0.32" bulge="0" resolution="360 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
 		</vox>
@@ -82,3 +79,4 @@
 		</vox>
 	</group>
 </scene>
+
