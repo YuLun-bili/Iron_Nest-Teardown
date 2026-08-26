@@ -14,7 +14,7 @@ function client.init()
 	mapTableViewPos = VecCopy(mapTableViewPosRaw)
 	local tempPlayerFov = GetInt("options.gfx.fov")
 	mapTableFov = 70
-	mapTablePanSpeedMax = 4
+	mapTablePanAccMax = 4
 
 	mapCamPlayer3rd = GetBool("game.thirdperson")
 	mapCamLerpStart = Transform()
@@ -24,6 +24,11 @@ function client.init()
 	mapFovLerpTrack = tempPlayerFov
 
 	mapPanSpeedVec = Vec()
+	mapWasDrawing = false
+	mapLineStartPos = {}
+	mapLineEndPos = {}
+	mapLineType = 0
+	mapLineMarkerPos = {}
 end
 
 function client.tick(dt)
@@ -78,18 +83,27 @@ function client.render(dt)
 end
 
 function client.draw(dt)
-	if useMapCamLerp == 0 then return end
+	if useMapCamLerp == 0 then
+		if mapWasDrawing then clientLocalResetMapDrawing() end
+		return
+	end
+	local clientLocalPlayerId = GetLocalPlayer()
 	UiPush()
 		UiMakeInteractive()
 		if useMapCamLerp == 1 then
 			local tempOldSpeedVal = VecLength(mapPanSpeedVec)
+			local tempScaleMaxVel = 0.05
 			local tempOldViewPos = VecCopy(mapTableViewPos)
 			local tempInputRawX = InputValue("right")-InputValue("left")
 			local tempInputRawZ = InputValue("down")-InputValue("up")
 			local tempAnyInput = (tempInputRawX ~= 0 or tempInputRawZ ~= 0)
-			local tempInputNewSpeed = tempAnyInput and VecNormalize(Vec(tempInputRawX, 0, tempInputRawZ)) or Vec()
-			tempInputNewSpeed = VecScale(tempInputNewSpeed, math.min(1, tempOldSpeedVal/mapTablePanSpeedMax+0.1)*dt)
-			local tempNewSpeedVel = VecAdd(VecScale(mapPanSpeedVec, 1-(tempAnyInput and 1.25 or 3.5)*dt), tempInputNewSpeed)
+			local tempInputNewSpeed = Vec()
+			local tempSlowFactor = tempAnyInput and 1.25 or 4.5
+			if tempAnyInput and (tempOldSpeedVal < tempScaleMaxVel) then
+				tempInputNewSpeed = VecScale(VecNormalize(Vec(tempInputRawX, 0, tempInputRawZ)), math.min(1, tempOldSpeedVal/mapTablePanAccMax+0.1)*dt)
+				tempSlowFactor = 0
+			end
+			local tempNewSpeedVel = VecAdd(VecScale(mapPanSpeedVec, 1-tempSlowFactor*dt), tempInputNewSpeed)
 
 			mapTableViewPos = VecAdd(mapTableViewPos, tempNewSpeedVel)
 			mapTableViewPos[1] = math.min(math.max(0, mapTableViewPos[1]), mapTableWidth)
@@ -98,5 +112,61 @@ function client.draw(dt)
 		else
 			mapPanSpeedVec = Vec()
 		end
+
+		if useMapCamLerp ~= 1 then
+			UiPop()
+			if shared.mapLineList[clientLocalPlayerId] then ServerCall("server.playerCancelMapLine", clientLocalPlayerId) end
+			if mapWasDrawing then clientLocalResetMapDrawing() end
+			return
+		end
+
+		
 	UiPop()
+end
+
+function clientLocalResetMapDrawing()
+	mapWasDrawing = false
+	mapLineStartPos = {}
+	mapLineEndPos = {}
+	mapLineType = 0
+	mapLineMarkerPos = {}
+end
+
+function server.init()
+	shared.mapLineIndex = 0
+	shared.mapLineList = {}
+	shared.mapPlayerLineList = {}
+end
+
+function server.playerDrawMapLine(playerId, startPos, endPos, lineType, markerPos)
+	shared.mapPlayerLineList[playerId] = {startPos, endPos, lineType, markerPos}
+end
+
+function server.playerFinishMapLine(playerId)
+	if not shared.mapPlayerLineList[playerId] then return end
+	server.addMapLine(shared.mapPlayerLineList[playerId])
+	server.playerCancelMapLine(playerId)
+end
+
+function server.playerCancelMapLine(playerId)
+	shared.mapPlayerLineList[playerId] = nil
+end
+
+function server.addMapLine(lineData)
+	local startPos = lineData[1]
+	local endPos = lineData[2]
+	local lineType = lineData[3]
+	local markerPos = lineData[4]
+	local tempNewIndex = shared.mapLineIndex + 1
+	shared.mapLineIndex = tempNewIndex
+	shared.mapLineList[tempNewIndex] = {startPos, endPos, lineType, markerPos}
+end
+
+function server.editMapLineMarkerPos(lineIndex, markerPos)
+	shared.mapLineList[lineIndex][4] = markerPos
+end
+
+function server.clearMapLine(lineIndex)
+	if not shared.mapLineList[lineIndex] then return end
+	shared.mapLineList[lineIndex] = nil
 end
