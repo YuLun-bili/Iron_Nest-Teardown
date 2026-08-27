@@ -6,9 +6,10 @@ function client.init()
 	useMapCamLerpTime = 0.275
 
 	mapTableShape = FindShape("mapTable", true)
-	local mapTableVX, mapTableVY, mapTableVZ, mapTableScale = GetShapeSize(mapTableShape)
+	local mapTableVX, mapTableVY, mapTableVZ, mapTableScale = GetShapeSize(mapTableShape) -- magicavoxel z up
 	mapTableWidth = mapTableVX*mapTableScale
 	mapTableHeight = mapTableVZ*mapTableScale
+	mapTableThickness = mapTableVY*mapTableScale
 	mapTableHeightOff = 0.21
 	mapTableViewPosRaw = Vec(mapTableWidth/2, 2.5, mapTableHeight/2+mapTableHeightOff)
 	mapTableViewPos = VecCopy(mapTableViewPosRaw)
@@ -28,10 +29,57 @@ function client.init()
 	mapLineStartPos = {}
 	mapLineEndPos = {}
 	mapLineType = 0
-	mapLineMarkerPos = {}
+	mapLineMarkerPos = 0
+
+	clientLocalTrackMapLineList = {}
+	clientLocalTrackPlayerMapLineList = {}
 end
 
 function client.tick(dt)
+	SetInt("ironNest.mapLineIndex", shared.mapLineIndex)
+	for i=1, shared.mapLineIndex do
+		local tempCheckLine = shared.mapLineList[i]
+		local tempCheckLocalLine = clientLocalTrackMapLineList[i]
+		if tempCheckLine and not tempCheckLocalLine then
+			SetFloat("ironNest.mapLine."..i..".startPos.x", tempCheckLine[1][1])
+			SetFloat("ironNest.mapLine."..i..".startPos.y", tempCheckLine[1][2])
+			SetFloat("ironNest.mapLine."..i..".endPos.x", tempCheckLine[2][1])
+			SetFloat("ironNest.mapLine."..i..".endPos.y", tempCheckLine[2][2])
+			SetInt("ironNest.mapLine."..i..".lineType", tempCheckLine[3])
+			SetFloat("ironNest.mapLine."..i..".markerPos", tempCheckLine[4])
+			clientLocalTrackMapLineList[i] = true
+		elseif tempCheckLocalLine and not tempCheckLine then
+			ClearKey("ironNest.mapLine."..i)
+			clientLocalTrackMapLineList[i] = nil
+		end
+	end
+
+	local clientLocalAllPlayers = GetAllPlayers()
+	for p=1, #clientLocalAllPlayers do
+		local tempPlayerId = clientLocalAllPlayers[p]
+		local tempCheckLine = shared.mapPlayerLineList[tempPlayerId]
+		local tempCheckLocalLine = clientLocalTrackPlayerMapLineList[tempPlayerId]
+		if tempCheckLine then
+			SetFloat("ironNest.playerMapLine."..tempPlayerId..".startPos.x", tempCheckLine[1][1])
+			SetFloat("ironNest.playerMapLine."..tempPlayerId..".startPos.y", tempCheckLine[1][2])
+			SetFloat("ironNest.playerMapLine."..tempPlayerId..".endPos.x", tempCheckLine[2][1])
+			SetFloat("ironNest.playerMapLine."..tempPlayerId..".endPos.y", tempCheckLine[2][2])
+			SetInt("ironNest.playerMapLine."..tempPlayerId..".lineType", tempCheckLine[3])
+			SetFloat("ironNest.playerMapLine."..tempPlayerId..".markerPos", tempCheckLine[4])
+			clientLocalTrackPlayerMapLineList[tempPlayerId] = true
+		elseif tempCheckLocalLine and not tempCheckLine then
+			ClearKey("ironNest.playerMapLine."..tempPlayerId)
+			clientLocalTrackPlayerMapLineList[tempPlayerId] = nil
+		end
+	end
+
+	local clientLocalRemovedPlayers = GetRemovedPlayers()
+	for p=1, #clientLocalRemovedPlayers do
+		local tempPlayerId = clientLocalRemovedPlayers[p]
+		ClearKey("ironNest.playerMapLine."..tempPlayerId)
+		clientLocalTrackPlayerMapLineList[tempPlayerId] = nil
+	end
+
 	if InputPressed("interact") then
 		useMap = not useMap
 		local tempOldCamLerp = useMapCamLerp
@@ -91,6 +139,7 @@ function client.draw(dt)
 	UiPush()
 		UiMakeInteractive()
 		if useMapCamLerp == 1 then
+			DisableMotionBlur()
 			local tempOldSpeedVal = VecLength(mapPanSpeedVec)
 			local tempScaleMaxVel = 0.05
 			local tempOldViewPos = VecCopy(mapTableViewPos)
@@ -120,7 +169,32 @@ function client.draw(dt)
 			return
 		end
 
-		
+		if InputDown("usetool") then
+			local tempMapTableShapeTrans = GetShapeWorldTransform(mapTableShape)
+			local tempCamTrans = GetCameraTransform()
+			if not mapWasDrawing then
+				local mousePointingDir = TransformToLocalVec(tempMapTableShapeTrans, UiPixelToWorld(UiGetMousePos()))
+				local camLocalPos = TransformToLocalPoint(tempMapTableShapeTrans, tempCamTrans.pos)
+				local camDirScale = (mapTableThickness-camLocalPos[2])/mousePointingDir[2]
+				mapWasDrawing = true
+				mapLineStartPos = {camLocalPos[1]+mousePointingDir[1]*camDirScale, camLocalPos[3]+mousePointingDir[3]*camDirScale}
+				mapLineEndPos = mapLineStartPos
+				mapLineType = 1
+			else
+				local mousePointingDir = TransformToLocalVec(tempMapTableShapeTrans, UiPixelToWorld(UiGetMousePos()))
+				local camLocalPos = TransformToLocalPoint(tempMapTableShapeTrans, tempCamTrans.pos)
+				local camDirScale = (mapTableThickness-camLocalPos[2])/mousePointingDir[2]
+				mapLineEndPos = {camLocalPos[1]+mousePointingDir[1]*camDirScale, camLocalPos[3]+mousePointingDir[3]*camDirScale}
+			end
+			local tempMapLineLenX = mapLineEndPos[1]-mapLineStartPos[1]
+			local tempMapLineLenY = mapLineEndPos[2]-mapLineStartPos[2]
+			local tempMapLineLength = math.sqrt(tempMapLineLenX*tempMapLineLenX+tempMapLineLenY*tempMapLineLenY)
+			mapLineMarkerPos = (tempMapLineLength-0.1)/tempMapLineLength
+			ServerCall("server.playerDrawMapLine", clientLocalPlayerId, mapLineStartPos, mapLineEndPos, mapLineType, mapLineMarkerPos)
+		elseif InputReleased("usetool") then
+			ServerCall("server.playerFinishMapLine", clientLocalPlayerId)
+			clientLocalResetMapDrawing()
+		end
 	UiPop()
 end
 
@@ -129,7 +203,12 @@ function clientLocalResetMapDrawing()
 	mapLineStartPos = {}
 	mapLineEndPos = {}
 	mapLineType = 0
-	mapLineMarkerPos = {}
+	mapLineMarkerPos = 0
+end
+
+function client.updateMapLineMarkerPos(lineIndex)
+	if not clientLocalTrackMapLineList[lineIndex] then return end
+	clientLocalTrackMapLineList[lineIndex] = false
 end
 
 function server.init()
@@ -164,6 +243,7 @@ end
 
 function server.editMapLineMarkerPos(lineIndex, markerPos)
 	shared.mapLineList[lineIndex][4] = markerPos
+	ClientCall(0, "client.updateMapLineMarkerPos", lineIndex)
 end
 
 function server.clearMapLine(lineIndex)
