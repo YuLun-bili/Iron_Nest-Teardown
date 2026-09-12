@@ -5,7 +5,7 @@ function client.init()
 	useMapCamLerp = 0
 	useMapCamLerpTime = 0.275
 
-	mapTableShape = FindShape("mapTable", true)
+	mapTableShape = FindShape("INmapTable", true)
 	local mapTableVX, mapTableVY, mapTableVZ, mapTableScale = GetShapeSize(mapTableShape) -- magicavoxel z up
 	mapTableWidth = mapTableVX*mapTableScale
 	mapTableHeight = mapTableVZ*mapTableScale
@@ -201,7 +201,7 @@ function client.draw(dt)
 			local tempMapLineLenX = mapLineEndPos[1]-mapLineStartPos[1]
 			local tempMapLineLenY = mapLineEndPos[2]-mapLineStartPos[2]
 			local tempMapLineLength = math.sqrt(tempMapLineLenX*tempMapLineLenX+tempMapLineLenY*tempMapLineLenY)
-			mapLineMarkerPos = (tempMapLineLength-0.1)/tempMapLineLength
+			mapLineMarkerPos = math.max((tempMapLineLength-0.1)/tempMapLineLength, 0)
 			ServerCall("server.playerDrawMapLine", clientLocalPlayerId, mapLineStartPos, mapLineEndPos, mapLineType, mapLineMarkerPos)
 		end
 	UiPop()

@@ -6,70 +6,74 @@
 	<spawnpoint pos="0 1 0" rot="0 180 0"/>
 	<group name="map table" pos="-3.9 0.1 -1.0">
 		<script file="MOD/testing/testInteractMap.lua"/>
-		<body tags="nomerge iron_nest_map" pos="-1.0 0.0 0.2" dynamic="true">
-			<voxbox tags="mapTable" pos="-1.7 0.0 -1.0" rot="0.0 0.0 0.0" size="32 1 18" offset="0.0 0.0 0.0" color="0.76 0.58 0.23">
-				<screen tags="imagePath=ui/terminal/map.jpg iron_nest_map_screen" pos="1.6 0.1 0.9" rot="-90.0 0.0 0.0" size="3.2 1.8" bulge="0" resolution="1920 1080" script="MOD/testing/testBackgroundSandbox.lua" enabled="true" emissive="0"/>
-				<group name="recon" pos="1.6 0.1 0.9">
-					<vox pos="-0.7 -0.02 -0.3" rot="0.0 -40.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
-						<screen pos="0.0 0.0201 0.0" rot="-90.0 0.0 0.0" size="0.72 0.32" bulge="0" resolution="360 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-					</vox>
-					<vox pos="-0.5 -0.02 -0.5" rot="0.0 -120.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
-						<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.72 0.32" bulge="0" resolution="360 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-					</vox>
-					<vox pos="-0.4 -0.02 -0.3" rot="0.0 170.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
-						<screen pos="0.0 0.0203 0.0" rot="-90.0 0.0 0.0" size="0.72 0.32" bulge="0" resolution="360 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-					</vox>
-					<vox pos="-0.59 -0.02 -0.07" rot="0.0 70.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
-						<screen pos="0.0 0.0204 0.0" rot="-90.0 0.0 0.0" size="0.72 0.32" bulge="0" resolution="360 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-					</vox>
-					<vox pos="0.5 -0.02 0.22" rot="0.0 -20.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
-						<screen pos="0.0 0.0201 0.0" rot="-90.0 0.0 0.0" size="0.72 0.32" bulge="0" resolution="360 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-					</vox>
-					<vox pos="-1.29 -0.02 0.63" rot="0.0 -40.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
-						<screen pos="0.0 0.0201 0.0" rot="-90.0 0.0 0.0" size="0.72 0.32" bulge="0" resolution="360 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-					</vox>
-					<group pos="0.1 0.0 0.7" rot="0.0 30.0 0.0">
-						<vox pos="-0.59 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
-							<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-						</vox>
-						<vox pos="-0.35 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
-							<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-						</vox>
-						<vox pos="-0.11 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
-							<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-						</vox>
-						<vox pos="0.13 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
-							<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-						</vox>
-						<vox pos="0.37 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
-							<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-						</vox>
-						<vox pos="0.61 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
-							<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-						</vox>
-					</group>
-					<group pos="1.4 0.0 -0.8" rot="0.0 100.0 0.0">
-						<vox pos="-0.59 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
-							<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-						</vox>
-						<vox pos="-0.35 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
-							<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-						</vox>
-						<vox pos="-0.11 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
-							<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-						</vox>
-						<vox pos="0.13 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
-							<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-						</vox>
-						<vox pos="0.37 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
-							<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-						</vox>
-						<vox pos="0.61 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
-							<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
-						</vox>
-					</group>
-				</group>
+		<body tags="nomerge iron_nest_map" pos="-1.0 0.8 0.2" dynamic="true">
+			<voxbox tags="INmapTable" pos="-1.7 0.0 -1.0" rot="0.0 0.0 0.0" size="32 1 18" offset="0.0 0.0 0.0" color="0.76 0.58 0.23">
+				<screen tags="imagePath=ui/terminal/map.jpg INsubMap" pos="0.8 0.1 0.45" rot="-90.0 0.0 0.0" size="1.6 0.9" bulge="0" resolution="1920 1080" script="MOD/testing/testBackgroundSandbox.lua" enabled="true" emissive="0"/>
+				<screen tags="imagePath=ui/terminal/map.jpg INsubMap" pos="2.4 0.1 0.45" rot="-90.0 0.0 0.0" size="1.6 0.9" bulge="0" resolution="1920 1080" script="MOD/testing/testBackgroundSandbox.lua" enabled="true" emissive="0"/>
+				<screen tags="imagePath=ui/terminal/map.jpg INsubMap" pos="0.8 0.1 1.35" rot="-90.0 0.0 0.0" size="1.6 0.9" bulge="0" resolution="1920 1080" script="MOD/testing/testBackgroundSandbox.lua" enabled="true" emissive="0"/>
+				<screen tags="imagePath=ui/terminal/map.jpg INsubMap" pos="2.4 0.1 1.35" rot="-90.0 0.0 0.0" size="1.6 0.9" bulge="0" resolution="1920 1080" script="MOD/testing/testBackgroundSandbox.lua" enabled="true" emissive="0"/>
 			</voxbox>
+			<group name="recon" pos="-0.1 0.1 -0.1" rot="0.0 0.0 0.0">
+				<vox pos="-0.7 -0.02 -0.3" rot="0.0 -40.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
+					<screen pos="0.0 0.0201 0.0" rot="-90.0 0.0 0.0" size="0.72 0.32" bulge="0" resolution="360 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				</vox>
+				<vox pos="-0.5 -0.02 -0.5" rot="0.0 -120.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
+					<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.72 0.32" bulge="0" resolution="360 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				</vox>
+				<vox pos="-0.4 -0.02 -0.3" rot="0.0 170.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
+					<screen pos="0.0 0.0203 0.0" rot="-90.0 0.0 0.0" size="0.72 0.32" bulge="0" resolution="360 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				</vox>
+				<vox pos="-0.59 -0.02 -0.07" rot="0.0 70.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
+					<screen pos="0.0 0.0204 0.0" rot="-90.0 0.0 0.0" size="0.72 0.32" bulge="0" resolution="360 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				</vox>
+				<vox pos="0.5 -0.02 0.22" rot="0.0 -20.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
+					<screen pos="0.0 0.0201 0.0" rot="-90.0 0.0 0.0" size="0.72 0.32" bulge="0" resolution="360 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				</vox>
+				<vox pos="-1.29 -0.02 0.63" rot="0.0 -40.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
+					<screen pos="0.0 0.0201 0.0" rot="-90.0 0.0 0.0" size="0.72 0.32" bulge="0" resolution="360 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+				</vox>
+				<group pos="0.1 0.0 0.7" rot="0.0 30.0 0.0">
+					<vox pos="-0.59 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
+						<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+					</vox>
+					<vox pos="-0.35 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
+						<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+					</vox>
+					<vox pos="-0.11 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
+						<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+					</vox>
+					<vox pos="0.13 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
+						<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+					</vox>
+					<vox pos="0.37 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
+						<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+					</vox>
+					<vox pos="0.61 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
+						<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+					</vox>
+				</group>
+				<group pos="1.4 0.0 -0.8" rot="0.0 100.0 0.0">
+					<vox pos="-0.59 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
+						<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+					</vox>
+					<vox pos="-0.35 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
+						<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+					</vox>
+					<vox pos="-0.11 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
+						<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+					</vox>
+					<vox pos="0.13 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
+						<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+					</vox>
+					<vox pos="0.37 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
+						<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+					</vox>
+					<vox pos="0.61 -0.02 0.03" rot="0.0 -.0 0.0" file="MOD/testing/reconShape.vox" object="single" scale="0.2">
+						<screen pos="0.0 0.0202 0.0" rot="-90.0 0.0 0.0" size="0.24 0.32" bulge="0" resolution="120 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
+					</vox>
+				</group>
+			</group>
+			<voxbox pos="-1.5 -0.8 -0.8" rot="0.0 0.0 0.0" size="28 8 14" color="0.76 0.58 0.23"/>
 		</body>
 		<vox pos="-3.4 0.0 -0.1" rot="0.0 0.0 0.0" file="MOD/testing/reconShape.vox" object="triple" scale="0.2">
 			<screen pos="0.0 0.0201 0.0" rot="-90.0 0.0 0.0" size="0.72 0.32" bulge="0" resolution="360 160" script="MOD/testing/testReconPhoto.lua" enabled="true" emissive="0"/>
