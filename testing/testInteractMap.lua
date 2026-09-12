@@ -10,12 +10,15 @@ function client.init()
 	mapTableWidth = mapTableVX*mapTableScale
 	mapTableHeight = mapTableVZ*mapTableScale
 	mapTableThickness = mapTableVY*mapTableScale
-	mapTableHeightOff = 0.21
-	mapTableViewPosRaw = Vec(mapTableWidth/2, 2.5, mapTableHeight/2+mapTableHeightOff)
+	mapTableHeightOff = 0.1
+	mapTableViewDistMin = 0.5
+	mapTableViewDistMax = 2.5
+	mapTableViewPosRaw = Vec(mapTableWidth/2, mapTableViewDistMax, mapTableHeight/2+mapTableHeightOff)
 	mapTableViewPos = VecCopy(mapTableViewPosRaw)
 	local tempPlayerFov = GetInt("options.gfx.fov")
 	mapTableFov = 70
 	mapTablePanAccMax = 4
+	mapTableZoomDtMax = 5
 
 	mapCamPlayer3rd = GetBool("game.thirdperson")
 	mapCamLerpStart = Transform()
@@ -33,6 +36,8 @@ function client.init()
 
 	clientLocalTrackMapLineList = {}
 	clientLocalTrackPlayerMapLineList = {}
+
+	selectedLineType = 1
 end
 
 function client.tick(dt)
@@ -139,11 +144,12 @@ function client.draw(dt)
 	UiPush()
 		UiMakeInteractive()
 		if useMapCamLerp == 1 then
-			DisableMotionBlur()
+			if not InputDown("p") then DisableMotionBlur() end
 			local tempOldSpeedVal = VecLength(mapPanSpeedVec)
 			local tempScaleMaxVel = 0.05
 			local tempOldViewPos = VecCopy(mapTableViewPos)
 			local tempInputRawX = InputValue("right")-InputValue("left")
+			local tempInputRawY = InputValue("jump")-InputValue("crouch")
 			local tempInputRawZ = InputValue("down")-InputValue("up")
 			local tempAnyInput = (tempInputRawX ~= 0 or tempInputRawZ ~= 0)
 			local tempInputNewSpeed = Vec()
@@ -153,11 +159,14 @@ function client.draw(dt)
 				tempSlowFactor = 0
 			end
 			local tempNewSpeedVel = VecAdd(VecScale(mapPanSpeedVec, 1-tempSlowFactor*dt), tempInputNewSpeed)
+			if not tempAnyInput and VecLength(tempNewSpeedVel) < 0.001 then tempNewSpeedVel = Vec() end
 
 			mapTableViewPos = VecAdd(mapTableViewPos, tempNewSpeedVel)
 			mapTableViewPos[1] = math.min(math.max(0, mapTableViewPos[1]), mapTableWidth)
+			mapTableViewPos[2] = math.min(math.max(mapTableViewDistMin, mapTableViewPos[2]+tempInputRawY*mapTableZoomDtMax*dt), mapTableViewDistMax)
 			mapTableViewPos[3] = math.min(math.max(0+mapTableHeightOff, mapTableViewPos[3]), mapTableHeight+mapTableHeightOff)
-			mapPanSpeedVec = VecSub(mapTableViewPos, tempOldViewPos)
+			local mapPanSpeedVecRaw = VecSub(mapTableViewPos, tempOldViewPos)
+			mapPanSpeedVec = Vec(mapPanSpeedVecRaw[1], 0, mapPanSpeedVecRaw[3])
 		else
 			mapPanSpeedVec = Vec()
 		end
@@ -169,7 +178,10 @@ function client.draw(dt)
 			return
 		end
 
-		if InputDown("usetool") then
+		if InputReleased("usetool") then
+			ServerCall("server.playerFinishMapLine", clientLocalPlayerId)
+			clientLocalResetMapDrawing()
+		elseif InputDown("usetool") then
 			local tempMapTableShapeTrans = GetShapeWorldTransform(mapTableShape)
 			local tempCamTrans = GetCameraTransform()
 			if not mapWasDrawing then
@@ -179,7 +191,7 @@ function client.draw(dt)
 				mapWasDrawing = true
 				mapLineStartPos = {camLocalPos[1]+mousePointingDir[1]*camDirScale, camLocalPos[3]+mousePointingDir[3]*camDirScale}
 				mapLineEndPos = mapLineStartPos
-				mapLineType = 1
+				mapLineType = selectedLineType
 			else
 				local mousePointingDir = TransformToLocalVec(tempMapTableShapeTrans, UiPixelToWorld(UiGetMousePos()))
 				local camLocalPos = TransformToLocalPoint(tempMapTableShapeTrans, tempCamTrans.pos)
@@ -191,9 +203,6 @@ function client.draw(dt)
 			local tempMapLineLength = math.sqrt(tempMapLineLenX*tempMapLineLenX+tempMapLineLenY*tempMapLineLenY)
 			mapLineMarkerPos = (tempMapLineLength-0.1)/tempMapLineLength
 			ServerCall("server.playerDrawMapLine", clientLocalPlayerId, mapLineStartPos, mapLineEndPos, mapLineType, mapLineMarkerPos)
-		elseif InputReleased("usetool") then
-			ServerCall("server.playerFinishMapLine", clientLocalPlayerId)
-			clientLocalResetMapDrawing()
 		end
 	UiPop()
 end
